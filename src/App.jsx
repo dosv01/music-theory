@@ -65,7 +65,7 @@ function buildAllModeShapes(root) {
   const shift = new Array(7).fill(0);
   for (let i = 1; i <= 5; i++) {
     let a = rawAnchors[i];
-    while (a <= rawAnchors[i - 1] + shift[i - 1]) a += 12;
+    while (a < rawAnchors[i - 1] + shift[i - 1]) a += 12;
     shift[i] = a - rawAnchors[i];
   }
   return MODES.map((m, i) => {
@@ -400,15 +400,15 @@ function FieldTable({ title, rows }) {
 }
 
 function Fretboard({ frets, shapeByString, rootIdx, inlayFrets }) {
-  const cellW = 62;
-  const leftPad = 34;
-  const topPad = 22;
-  const rowH = 26;
-  const width = leftPad + cellW * (frets.length - 1) + 26;
-  const height = topPad + rowH * (STRINGS_TOP_TO_BOTTOM.length - 1) + 34;
+  const cellW = 90;
+  const leftPad = 48;
+  const topPad = 30;
+  const rowH = 40;
+  const width = leftPad + cellW * (frets.length - 1) + 36;
+  const height = topPad + rowH * (STRINGS_TOP_TO_BOTTOM.length - 1) + 50;
 
   return (
-    <svg viewBox={`0 0 ${width} ${height}`} width="100%" style={{ maxWidth: 460 }}>
+    <svg viewBox={`0 0 ${width} ${height}`} width="100%" style={{ maxWidth: 660 }}>
       {/* casas (linhas verticais) */}
       {frets.map((f, i) => (
         <line
@@ -445,8 +445,8 @@ function Fretboard({ frets, shapeByString, rootIdx, inlayFrets }) {
         <text
           key={f}
           x={leftPad + i * cellW}
-          y={topPad - 8}
-          fontSize={10}
+          y={topPad - 10}
+          fontSize={13}
           fill="#6E6656"
           textAnchor="middle"
         >
@@ -459,22 +459,22 @@ function Fretboard({ frets, shapeByString, rootIdx, inlayFrets }) {
           const noteIdx = (s.idx + f) % 12;
           const isRoot = noteIdx === rootIdx;
           const col = f - frets[0];
-          const cx = leftPad + col * cellW;
+          const cx = leftPad + (col + 0.5) * cellW;
           const cy = topPad + r * rowH;
           return (
             <g key={`${r}-${f}`}>
               <circle
                 cx={cx}
                 cy={cy}
-                r={10}
+                r={14}
                 fill={isRoot ? "#B5482F" : "#1F1A13"}
                 stroke={isRoot ? "#B5482F" : "#C9A227"}
-                strokeWidth={1.5}
+                strokeWidth={2}
               />
               <text
                 x={cx}
-                y={cy + 3.5}
-                fontSize={9.5}
+                y={cy + 4.5}
+                fontSize={12}
                 fontWeight={600}
                 fill={isRoot ? "#F4EEDD" : "#E8B23D"}
                 textAnchor="middle"
@@ -489,9 +489,9 @@ function Fretboard({ frets, shapeByString, rootIdx, inlayFrets }) {
       {STRINGS_TOP_TO_BOTTOM.map((s, r) => (
         <text
           key={`label-${r}`}
-          x={leftPad - 16}
-          y={topPad + r * rowH + 3.5}
-          fontSize={11}
+          x={leftPad - 22}
+          y={topPad + r * rowH + 5}
+          fontSize={14}
           fill="#7C7462"
           textAnchor="middle"
         >
