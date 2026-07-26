@@ -115,6 +115,11 @@ export default function CampoHarmonicoModos() {
   const mode = MODES[modeIndex];
   const { modeRoot, shapeLowToHigh } = allShapes[modeIndex];
   const modeNoteNames = mode.intervals.map((iv) => NOTES[(modeRoot + iv) % 12]);
+  
+  // Debug
+  if (root === 0 && modeIndex === 1) {
+    console.log("D Dórico shape (raw):", shapeLowToHigh);
+  }
 
   const shapeByString = useMemo(
     () => [...shapeLowToHigh].reverse().map((frets) => frets.map((f) => f + octaveNudge)),
@@ -279,7 +284,7 @@ export default function CampoHarmonicoModos() {
         .pos-tab.active { background: #C9A227; color: #15120D; border-color: #C9A227; font-weight: 600; }
         .pos-label { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #6E6656; }
 
-        .fretboard-card { background: #1B160F; border: 1px solid #2E271C; border-radius: 8px; padding: 18px 20px 10px; }
+        .fretboard-card { background: #1B160F; border: 1px solid #2E271C; border-radius: 8px; padding: 18px 20px 10px; overflow-x: auto; }
         svg text { font-family: 'IBM Plex Mono', monospace; }
       `}</style>
 
@@ -404,11 +409,12 @@ function Fretboard({ frets, shapeByString, rootIdx, inlayFrets }) {
   const leftPad = 48;
   const topPad = 30;
   const rowH = 40;
-  const width = leftPad + cellW * (frets.length - 1) + 36;
+  const rightPad = 80;
+  const width = leftPad + cellW * (frets.length - 1) + rightPad;
   const height = topPad + rowH * (STRINGS_TOP_TO_BOTTOM.length - 1) + 50;
 
   return (
-    <svg viewBox={`0 0 ${width} ${height}`} width="100%" style={{ maxWidth: 660 }}>
+    <svg viewBox={`0 0 ${width} ${height}`} width="100%" style={{ maxWidth: "100%", overflow: "visible" }}>
       {/* casas (linhas verticais) */}
       {frets.map((f, i) => (
         <line
