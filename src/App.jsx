@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 
 /* ---------- dados musicais ---------- */
 const NOTES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
@@ -130,6 +130,27 @@ export default function CampoHarmonicoModos() {
   const [system, setSystem] = useState("parallel"); // 'parallel' | 'relative'
   const [modeIndex, setModeIndex] = useState(0);
   const [octaveNudge, setOctaveNudge] = useState(0); // -12, 0 ou +12
+
+  const [visitCount, setVisitCount] = useState(null);
+
+  // contador de acessos: soma +1 a cada carregamento de página via CountAPI
+  // (gratuita, sem cadastro). Aparece no console (F12) e também no rodapé.
+  // troque o namespace abaixo por algo único seu, se quiser evitar colisão com outros projetos.
+  useEffect(() => {
+    fetch("https://api.countapi.xyz/hit/campo-harmonico-modos-brunodovale/visitas")
+      .then((r) => r.json())
+      .then((data) => {
+        setVisitCount(data.value);
+        console.log(
+          "%c🎸 acessos ao Campo Harmônico & Modos: %c" + data.value,
+          "color:#7C7462;font-family:monospace",
+          "color:#C9A227;font-family:monospace;font-weight:bold;font-size:13px"
+        );
+      })
+      .catch(() => {
+        console.log("%c[debug] contador de acessos indisponível no momento", "color:#7C7462");
+      });
+  }, []);
 
   const rootName = NOTES[root];
 
@@ -315,6 +336,43 @@ export default function CampoHarmonicoModos() {
 
         .fretboard-card { background: #1B160F; border: 1px solid #2E271C; border-radius: 8px; padding: 18px 20px 10px; }
         svg text { font-family: 'IBM Plex Mono', monospace; }
+
+        .site-footer {
+          padding: 22px 28px 26px;
+          border-top: 1px solid #221D16;
+          background: #12100B;
+        }
+        .site-footer p {
+          margin: 0;
+          font-size: 12.5px;
+          line-height: 1.7;
+          color: #7C7462;
+        }
+        .footer-links {
+          display: inline-flex;
+          gap: 12px;
+          margin-left: 6px;
+          vertical-align: middle;
+        }
+        .footer-link {
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+          color: #C9A227;
+          text-decoration: none;
+          font-family: 'IBM Plex Mono', monospace;
+          font-size: 12px;
+          font-weight: 500;
+        }
+        .footer-link:hover { color: #E8B23D; text-decoration: underline; }
+        .footer-link svg { width: 14px; height: 14px; flex-shrink: 0; }
+        .visit-counter {
+          margin-top: 10px;
+          font-family: 'IBM Plex Mono', monospace;
+          font-size: 12.5px;
+          color: #A99C86;
+        }
+        .visit-counter strong { color: #C9A227; font-size: 14px; }
       `}</style>
 
       <div className="hero">
@@ -420,6 +478,42 @@ export default function CampoHarmonicoModos() {
           />
         </div>
       </section>
+
+      <footer className="site-footer">
+        <p>
+          Mini App Criado com o Claude + Github Pages por dosv01. Aproveita, dá uma moral, e se
+          inscreve nos meus canais:
+          <span className="footer-links">
+            <a
+              className="footer-link"
+              href="https://www.youtube.com/@DaniloSantosGT"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <path d="M22 8.5s-.2-1.6-.8-2.3c-.8-.9-1.7-.9-2.1-1C16.3 5 12 5 12 5h0s-4.3 0-7.1.2c-.4 0-1.3.1-2.1 1C2.2 6.9 2 8.5 2 8.5S1.8 10.4 1.8 12.2v1.6c0 1.9.2 3.7.2 3.7s.2 1.6.8 2.3c.8.9 1.9.9 2.4 1C6.9 21 12 21 12 21s4.3 0 7.1-.2c.4 0 1.3-.1 2.1-1 .6-.7.8-2.3.8-2.3s.2-1.9.2-3.7v-1.6c0-1.9-.2-3.7-.2-3.7ZM9.8 15.5v-6l5.6 3-5.6 3Z" />
+              </svg>
+              YouTube
+            </a>
+            <a
+              className="footer-link"
+              href="https://www.instagram.com/dosv01/"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                <rect x="3" y="3" width="18" height="18" rx="5" />
+                <circle cx="12" cy="12" r="4" />
+                <circle cx="17.2" cy="6.8" r="1.1" fill="currentColor" stroke="none" />
+              </svg>
+              Instagram
+            </a>
+          </span>
+        </p>
+        <p className="visit-counter">
+          <strong>{visitCount ?? "…"}</strong> músicos já visitaram este mini App
+        </p>
+      </footer>
     </div>
   );
 }
