@@ -37,69 +37,37 @@ const STRINGS_TOP_TO_BOTTOM = [...TUNING].reverse(); // aguda no topo, como num 
 
 const LOW_E_CLASS = TUNING[0].idx;
 
-// gera as 18 notas (6 cordas x 3) de um shape 3nps, dado uma função
-// que retorna a classe de altura (0-11) da n-ésima nota da sequência
-function buildShapeFromSequence(targetClassFn) {
-  let n = 0;
-  let prevLast = null;
-  return TUNING.map((str) => {
-    const t0 = targetClassFn(n), t1 = targetClassFn(n + 1), t2 = targetClassFn(n + 2);
-    n += 3;
-    const raw = (t) => (t - str.idx + 12) % 12;
-    let f0 = raw(t0);
-    // a 1ª nota da corda precisa ficar perto de onde a corda anterior parou —
-    // senão pode "resetar" pro início do braço (bug corrigido aqui)
-    if (prevLast !== null) {
-      while (prevLast - f0 > 7) f0 += 12;
+// gera as 18 notas (6 cordas x 3) de um shape de modo relativo,
+// caminhando pela escala do modo a partir da raiz selecionada
+function buildModeShape(root, modeIdx) {
+  const modeRoot = root;
+  const modeIntervals = MODES[modeIdx].intervals;
+  
+  const perStringLowToHigh = TUNING.map((str, strIdx) => {
+    const result = [];
+    // Cada corda começa em um ponto diferente da escala (incrementando 3 em 3)
+    const startNoteIdx = (strIdx * 3) % 7;
+    for (let i = 0; i < 3; i++) {
+      const noteIntervalIdx = (startNoteIdx + i) % 7;
+      const noteClass = (modeRoot + modeIntervals[noteIntervalIdx]) % 12;
+      let fret = (noteClass - str.idx + 12) % 12;
+      result.push(fret);
     }
-    let f1 = raw(t1);
-    if (f1 <= f0) f1 += 12;
-    let f2 = raw(t2);
-    if (f2 <= f1) f2 += 12;
-    prevLast = f2;
-    return [f0, f1, f2];
+    // Garantir ordem crescente
+    for (let i = 1; i < result.length; i++) {
+      if (result[i] <= result[i-1]) {
+        result[i] += 12;
+      }
+    }
+    return result;
   });
+  return perStringLowToHigh;
 }
 
-// nenhum shape pode ter nota na corda solta (casa 0): se tiver,
-// sobe a forma inteira uma oitava, preservando as mesmas notas
-function avoidOpenString(shape) {
-  const min = Math.min(...shape.flat());
-  if (min <= 0) {
-    const shift = 12 - min; // garante mínimo = casa 1 (ou mais, se precisar de +1 casa)
-    return shape.map((frets) => frets.map((f) => f + shift));
-  }
-  return shape;
-}
-
-// MODOS RELATIVOS: os 7 modos do campo harmônico de `root` (uma única
-// escala maior compartilhada), encadeados subindo o braço — o sistema
-// clássico de 7 shapes (como na apostila).
-function buildRelativeShapes(root) {
-  const rawAnchors = MAJOR_INTERVALS.map(
-    (iv) => ((root + iv) % 12 - LOW_E_CLASS + 12) % 12
-  );
-  const shift = new Array(7).fill(0);
-  for (let i = 1; i <= 5; i++) {
-    let a = rawAnchors[i];
-    while (a <= rawAnchors[i - 1] + shift[i - 1]) a += 12;
-    shift[i] = a - rawAnchors[i];
-  }
+// posiciona os 7 shapes sem shifts, cada modo começando com sua primeira nota
+function buildAllModeShapes(root) {
   return MODES.map((m, i) => {
-    const seq = (n) => (root + MAJOR_INTERVALS[(i + n) % 7]) % 12;
-    const shape = avoidOpenString(
-      buildShapeFromSequence(seq).map((frets) => frets.map((f) => f + shift[i]))
-    );
-    return { modeRoot: (root + MAJOR_INTERVALS[i]) % 12, shapeLowToHigh: shape };
-  });
-}
-
-// MODOS PARALELOS: os 7 modos com a MESMA tônica `root`, cada um com
-// sua própria fórmula de intervalos (notas diferentes em cada modo).
-function buildParallelShapes(root) {
-  return MODES.map((m) => {
-    const seq = (n) => (root + m.intervals[n % 7]) % 12;
-    const shape = avoidOpenString(buildShapeFromSequence(seq));
+    const shape = buildModeShape(root, i);
     return { modeRoot: root, shapeLowToHigh: shape };
   });
 }
@@ -127,7 +95,6 @@ function buildField(rootIdx, intervals, triadQ, romans, seventhQ) {
 /* ---------- componente ---------- */
 export default function CampoHarmonicoModos() {
   const [root, setRoot] = useState(0);
-  const [system, setSystem] = useState("parallel"); // 'parallel' | 'relative'
   const [modeIndex, setModeIndex] = useState(0);
   const [octaveNudge, setOctaveNudge] = useState(0); // -12, 0 ou +12
 
@@ -142,10 +109,7 @@ export default function CampoHarmonicoModos() {
     [root]
   );
 
-  const allShapes = useMemo(
-    () => (system === "parallel" ? buildParallelShapes(root) : buildRelativeShapes(root)),
-    [system, root]
-  );
+  const allShapes = useMemo(() => buildAllModeShapes(root), [root]);
   const mode = MODES[modeIndex];
   const { modeRoot, shapeLowToHigh } = allShapes[modeIndex];
   const modeNoteNames = mode.intervals.map((iv) => NOTES[(modeRoot + iv) % 12]);
@@ -157,7 +121,8 @@ export default function CampoHarmonicoModos() {
 
   const allShapeFrets = shapeByString.flat();
   const minFret = Math.min(...allShapeFrets);
-  const maxFret = Math.max(...allShapeFrets);
+  let maxFret = Math.max(...allShapeFrets);
+  maxFret = Math.max(maxFret, 14); // Garantir que a casa 13 tenha linhas desenhadas
   const frets = Array.from({ length: maxFret - minFret + 1 }, (_, i) => minFret + i);
   const inlayFrets = new Set([3, 5, 7, 9, 12, 15]);
 
@@ -313,7 +278,7 @@ export default function CampoHarmonicoModos() {
         .pos-tab.active { background: #C9A227; color: #15120D; border-color: #C9A227; font-weight: 600; }
         .pos-label { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #6E6656; }
 
-        .fretboard-card { background: #1B160F; border: 1px solid #2E271C; border-radius: 8px; padding: 18px 20px 10px; }
+        .fretboard-card { background: #1B160F; border: 1px solid #2E271C; border-radius: 8px; padding: 18px 20px 10px; overflow-x: auto; }
         svg text { font-family: 'IBM Plex Mono', monospace; }
       `}</style>
 
@@ -347,31 +312,12 @@ export default function CampoHarmonicoModos() {
       </section>
 
       <section className="panel">
-        <h2>Modos gregos de {rootName}</h2>
-        <p className="hint">
-          {system === "parallel"
-            ? `Os 7 modos com tônica sempre em ${rootName} — cada um com notas diferentes.`
-            : `Os 7 modos do campo harmônico de ${rootName} maior — todos com as mesmas notas, encadeados no braço.`}
-        </p>
-
-        <div className="mode-tabs" style={{ marginBottom: 16 }}>
-          <button
-            className={`mode-tab ${system === "parallel" ? "active" : ""}`}
-            onClick={() => { setSystem("parallel"); setOctaveNudge(0); }}
-          >
-            Paralelos<span>mesma tônica ({rootName})</span>
-          </button>
-          <button
-            className={`mode-tab ${system === "relative" ? "active" : ""}`}
-            onClick={() => { setSystem("relative"); setOctaveNudge(0); }}
-          >
-            Relativos<span>campo harmônico de {rootName}</span>
-          </button>
-        </div>
+        <h2>Modos relativos da escala de {rootName} maior</h2>
+        <p className="hint">Os 7 shapes encadeados no braço, sempre com 3 notas por corda — mesmo sistema da apostila.</p>
 
         <div className="mode-tabs">
           {MODES.map((m, i) => {
-            const mRoot = system === "parallel" ? rootName : NOTES[(root + MAJOR_INTERVALS[i]) % 12];
+            const mRoot = NOTES[(root + MAJOR_INTERVALS[i]) % 12];
             return (
               <button
                 key={m.name}
@@ -453,90 +399,78 @@ function FieldTable({ title, rows }) {
 }
 
 function Fretboard({ frets, shapeByString, rootIdx, inlayFrets }) {
-  const minFret = frets[0];
-  const maxFret = frets[frets.length - 1];
-  // limite esquerdo da grade: uma linha antes da 1ª casa usada (a pestana, se minFret for 1)
-  const lineStart = Math.max(minFret - 1, 0);
-  const gridLines = Array.from({ length: maxFret - lineStart + 1 }, (_, i) => lineStart + i);
-
-  const cellW = 62;
-  const leftPad = 34;
-  const topPad = 22;
-  const rowH = 26;
-  const width = leftPad + cellW * (gridLines.length - 1) + 26;
-  const height = topPad + rowH * (STRINGS_TOP_TO_BOTTOM.length - 1) + 34;
-
-  // posição x de uma LINHA de traste (fronteira entre casas)
-  const lineX = (lineVal) => leftPad + (lineVal - lineStart) * cellW;
-  // posição x de uma NOTA na casa f: centralizada entre a linha (f-1) e a linha f;
-  // se f=0 (corda solta), fica exatamente sobre a pestana
-  const noteX = (f) => (f === 0 ? lineX(0) : (lineX(f - 1) + lineX(f)) / 2);
-
-  // casas que realmente têm alguma nota do shape (as outras não mostram número)
-  const usedFrets = new Set(shapeByString.flat());
+  const cellW = 7.875;
+  const leftPad = 4.25;
+  const topPad = 2.5;
+  const rowH = 3.5;
+  const bottomPad = 5;
+  const width = leftPad + cellW * frets.length + bottomPad;
+  const height = topPad + rowH * (STRINGS_TOP_TO_BOTTOM.length - 1) + bottomPad;
 
   return (
-    <svg viewBox={`0 0 ${width} ${height}`} width="100%" style={{ maxWidth: 460 }}>
-      {/* trastes (linhas verticais) */}
-      {gridLines.map((lv) => (
+    <svg viewBox={`0 0 ${width} ${height}`} width="100%" style={{ maxWidth: "100%", overflow: "visible" }}>
+      {/* casas (linhas verticais) */}
+      {frets.map((f, i) => (
         <line
-          key={lv}
-          x1={lineX(lv)}
-          x2={lineX(lv)}
+          key={f}
+          x1={leftPad + i * cellW}
+          x2={leftPad + i * cellW}
           y1={topPad}
           y2={topPad + rowH * (STRINGS_TOP_TO_BOTTOM.length - 1)}
-          stroke={lv === 0 ? "#EDE6D6" : "#4A4130"}
-          strokeWidth={lv === 0 ? 3 : 1.5}
+          stroke={f === 0 ? "#EDE6D6" : "#4A4130"}
+          strokeWidth={f === 0 ? 0.15 : 0.08}
         />
       ))}
       {/* cordas (linhas horizontais) */}
       {STRINGS_TOP_TO_BOTTOM.map((s, r) => (
         <line
           key={r}
-          x1={lineX(lineStart)}
-          x2={lineX(maxFret)}
+          x1={leftPad}
+          x2={leftPad + cellW * (frets.length - 1)}
           y1={topPad + r * rowH}
           y2={topPad + r * rowH}
           stroke="#6E6656"
-          strokeWidth={1}
+          strokeWidth={0.08}
         />
       ))}
-      {/* marcadores de casa (inlays), centralizados na célula */}
-      {gridLines.map((f) => {
-        if (f < 1 || !inlayFrets.has(f) || !usedFrets.has(f)) return null;
-        const cy = topPad + rowH * (STRINGS_TOP_TO_BOTTOM.length - 1) + 16;
-        return <circle key={f} cx={noteX(f)} cy={cy} r={2.5} fill="#3A3226" />;
-      })}
-      {/* números das casas — só as que têm nota, centralizados, nunca "casa 0" */}
-      {gridLines.map((f) => {
-        if (f < 1 || !usedFrets.has(f)) return null;
-        return (
-          <text key={f} x={noteX(f)} y={topPad - 8} fontSize={10} fill="#6E6656" textAnchor="middle">
+      {/* marcadores de casa (inlays) - DESATIVADO */}
+      {/* números das casas */}
+      {frets.map((f, i) => (
+        f !== 14 && (
+          <text
+            key={f}
+            x={leftPad + (i + 0.5) * cellW}
+            y={topPad - 1}
+            fontSize={1.75}
+            fill="#6E6656"
+            textAnchor="middle"
+          >
             {f}
           </text>
-        );
-      })}
-      {/* notas: exatamente 3 por corda, centralizadas entre os trastes */}
+        )
+      ))}
+      {/* notas: exatamente 3 por corda */}
       {STRINGS_TOP_TO_BOTTOM.map((s, r) =>
         shapeByString[r].map((f) => {
           const noteIdx = (s.idx + f) % 12;
           const isRoot = noteIdx === rootIdx;
-          const cx = noteX(f);
+          const col = f - frets[0];
+          const cx = leftPad + (col + 0.5) * cellW;
           const cy = topPad + r * rowH;
           return (
             <g key={`${r}-${f}`}>
               <circle
                 cx={cx}
                 cy={cy}
-                r={10}
+                r={1.25}
                 fill={isRoot ? "#B5482F" : "#1F1A13"}
                 stroke={isRoot ? "#B5482F" : "#C9A227"}
-                strokeWidth={1.5}
+                strokeWidth={0.15}
               />
               <text
                 x={cx}
-                y={cy + 3.5}
-                fontSize={9.5}
+                y={cy + 0.4}
+                fontSize={1.125}
                 fontWeight={600}
                 fill={isRoot ? "#F4EEDD" : "#E8B23D"}
                 textAnchor="middle"
@@ -551,9 +485,9 @@ function Fretboard({ frets, shapeByString, rootIdx, inlayFrets }) {
       {STRINGS_TOP_TO_BOTTOM.map((s, r) => (
         <text
           key={`label-${r}`}
-          x={leftPad - 16}
-          y={topPad + r * rowH + 3.5}
-          fontSize={11}
+          x={leftPad - 2}
+          y={topPad + r * rowH + 0.45}
+          fontSize={1.5}
           fill="#7C7462"
           textAnchor="middle"
         >
