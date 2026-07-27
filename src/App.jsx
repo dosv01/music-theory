@@ -137,7 +137,7 @@ export default function CampoHarmonicoModos() {
   // (gratuita, sem cadastro). Aparece no console (F12) e também no rodapé.
   // troque o namespace abaixo por algo único seu, se quiser evitar colisão com outros projetos.
   useEffect(() => {
-    fetch("https://api.countapi.xyz/hit/campo-harmonico-modos-brunodovale/visitas")
+    fetch("https://countapi.mileshilliard.com/api/v1/hit/music-theory")
       .then((r) => r.json())
       .then((data) => {
         setVisitCount(data.value);
