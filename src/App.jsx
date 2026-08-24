@@ -673,7 +673,10 @@ function Fretboard({ frets, shapeByString, rootIdx, inlayFrets }) {
   const usedFrets = new Set(shapeByString.flat());
 
   return (
-    <svg viewBox={`0 0 ${width} ${height}`} width="100%" style={{ minWidth: 460 }}>
+    <svg 
+      viewBox={`0 0 ${width} ${height}`} 
+      style={{ width: "100%", maxWidth: `${width}px`, height: "auto", display: "block" }}
+    >
       {gridLines.map((lv) => (
         <line
           key={lv}
