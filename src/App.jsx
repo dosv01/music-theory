@@ -160,17 +160,20 @@ function buildPentaBoxes(root, isMinor = false) {
     return { shapeLowToHigh: avoidOpenString(shape) };
   });
 
-  return boxes.sort((a, b) => Math.min(...a.shapeLowToHigh.flat()) - Math.min(...b.shapeLowToHigh.flat()));
-}
+  // 1. Pega a ordem atual (ordenada da casa mais grave para a mais aguda)
+  const currentBoxes = boxes.sort((a, b) => Math.min(...a.shapeLowToHigh.flat()) - Math.min(...b.shapeLowToHigh.flat()));
 
-function buildChordMap(chordNoteClasses) {
-  return TUNING.map(str => {
-      const frets = [];
-      for (let f = 0; f <= 15; f++) {
-          if (chordNoteClasses.includes((str.idx + f) % 12)) frets.push(f);
-      }
-      return frets;
-  });
+  // 2. Aplica a rotação exata solicitada:
+  // A Caixa 1 (index 0 atual) vai para o final, e as outras assumem a posição anterior
+  const shiftedBoxes = [
+    currentBoxes[1], // Nova Caixa 1 = Caixa 2 atual
+    currentBoxes[2], // Nova Caixa 2 = Caixa 3 atual
+    currentBoxes[3], // Nova Caixa 3 = Caixa 4 atual
+    currentBoxes[4], // Nova Caixa 4 = Caixa 5 atual
+    currentBoxes[0]  // Nova Caixa 5 = Caixa 1 atual
+  ];
+
+  return shiftedBoxes;
 }
 
 function qualitySuffix(q) {
